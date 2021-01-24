@@ -29,6 +29,7 @@ class _HomePageState extends State<HomePage> {
     return messageData != null;
   }
 
+  //checking the quote validity; temporarily adding it to 1 min for testing
   Future checkDataValidity() async {
     final SharedPreferences prefs = await _prefs;
     int createdAt = prefs.getInt("createdAt");
