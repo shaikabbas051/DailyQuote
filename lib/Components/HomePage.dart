@@ -1,19 +1,19 @@
+import 'package:envelope/Components/SideTriangle.dart';
+import 'package:envelope/Components/Triangle.dart';
 import 'package:flutter/material.dart';
 import 'dart:async' show Future;
 import 'dart:convert';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math';
-
-import 'package:flutter_svg/parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
 class HomePage extends StatefulWidget {
   @override
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   //state start
   var data;
@@ -21,6 +21,13 @@ class _HomePageState extends State<HomePage> {
   bool showMessage = false;
   Map _messageData = {};
   int _imageData = 1;
+  var fraction = 0.0174533;
+  bool envelopOpened = false;
+  double containerWidth = 250;
+  double containerHeight = 150;
+  double triangleRadius = 12;
+  int envelopeAnimationTime = 2;
+  int cardAnimationTime = 2;
   //state end *******************
   //check if the message and image is already loaded or the app is opened for the first time
   Future<bool> isDataPresent() async {
@@ -57,7 +64,6 @@ class _HomePageState extends State<HomePage> {
     await prefs.setInt("createdAt", timestamp);
     setState(() {
       _imageData = randomNumber_image;
-      showMessage = true;
       _messageData = messageData;
     });
   }
@@ -74,9 +80,9 @@ class _HomePageState extends State<HomePage> {
         int imageData = prefs.getInt("imageData");
         setState(() {
           _imageData = imageData;
-          showMessage = true;
           _messageData = jsonDecode(messageData);
         });
+        print(_messageData);
         return;
       } else {
         return getNewQuote();
@@ -86,56 +92,201 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  AnimationController envelopeController;
+  Animation<double> envelopeAnimation;
+  AnimationController cardController;
+  Animation<double> cardAnimation;
   @override
   void initState() {
     super.initState();
+
+    envelopeController = new AnimationController(
+        duration: Duration(milliseconds: 2000), vsync: this)
+      ..addListener(() => setState(() {}));
+    envelopeAnimation =
+        Tween(begin: 0.0, end: 180.0).animate(envelopeController);
+    //card
+    cardController = new AnimationController(
+        duration: Duration(milliseconds: 1500), vsync: this)
+      ..addListener(() => setState(() {}));
+    cardAnimation = Tween(begin: 0.0, end: -125.0).animate(cardController);
+    loadQuote();
+  }
+
+  void animateEnvelope() {
+    envelopeController.forward();
+    new Timer(const Duration(milliseconds: 2100), () {
+      setState(() {
+        envelopOpened = true;
+      });
+      animateCard();
+    });
+  }
+
+  void animateCard() {
+    cardController.forward();
+    new Timer(const Duration(milliseconds: 1600), () {
+      // loadQuote();
+      this.setState(() {
+        showMessage = true;
+      });
+    });
+  }
+
+  Widget card() {
+    // return renderMessage();
+    // return Container(
+    //   height: containerHeight - 20,
+    //   width: containerWidth - 20,
+    //   // color: Colors.white,
+    //   margin: new EdgeInsets.fromLTRB(10, 10, 10, 0),
+    //   child: Text("Good Morning"),
+    //   transform: new Matrix4.translationValues(0, cardAnimation.value, 0),
+    //   decoration: BoxDecoration(
+    //       borderRadius: BorderRadius.circular(10), color: Colors.blue),
+    // );
+    return Container(
+      height: containerHeight - 20,
+      width: containerWidth - 20,
+      margin: new EdgeInsets.fromLTRB(10, 10, 10, 0),
+      transform: new Matrix4.translationValues(0, cardAnimation.value, 0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        image: DecorationImage(
+          image:
+              AssetImage("lib/Assets/image" + _imageData.toString() + ".jpg"),
+          fit: BoxFit.cover,
+          colorFilter: new ColorFilter.mode(
+              Colors.black.withOpacity(0.9), BlendMode.dstATop),
+        ),
+      ),
+      child: Center(
+        child: Text(
+          _messageData.containsKey('message') ? _messageData["message"] : "",
+          // "boom",
+          style: TextStyle(fontSize: 20, color: Colors.black),
+        ),
+      ),
+    );
+  }
+
+  Widget envelopeTop() {
+    return new Container(
+      height: containerHeight,
+      width: containerWidth,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(triangleRadius),
+        child: CustomPaint(
+          painter: TrianglePainter(color: Color(0xffffd140)),
+        ),
+      ),
+      // padding: new EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 16.0),
+      transform: new Matrix4.rotationX(
+          0.0174533 * envelopeAnimation.value), // rotate -10 deg
+    );
+  }
+
+  Widget renderCustomEnvelope() {
+    return GestureDetector(
+      onTap: () => {animateEnvelope()},
+      behavior: HitTestBehavior.translucent,
+      child: new Stack(
+        children: [
+          Container(
+            height: containerHeight,
+            width: containerWidth,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(triangleRadius),
+              color: Color(0xffffd140),
+            ),
+          ),
+          envelopOpened ? envelopeTop() : card(),
+          envelopOpened ? card() : SizedBox(),
+          // envelopOpened ? card() : envelopeTop(),
+          //right
+          Transform.rotate(
+            child: Container(
+              height: containerHeight,
+              width: containerWidth,
+              // color: Colors.red,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(triangleRadius),
+                child: CustomPaint(
+                  painter: SideTrianglePainter(color: Color(0xfffebd0b)),
+                ),
+              ),
+            ),
+            angle: fraction * 0,
+          ),
+          Transform.rotate(
+            child: Container(
+              height: containerHeight,
+              width: containerWidth,
+              // color: Colors.red,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(triangleRadius),
+                child: CustomPaint(
+                    painter: SideTrianglePainter(color: Color(0xfffebd0b))),
+              ),
+            ),
+            angle: fraction * 180,
+          ),
+          //bottom
+          Transform.rotate(
+            child: Container(
+              height: containerHeight,
+              width: containerWidth,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(triangleRadius),
+                child: CustomPaint(
+                  painter: TrianglePainter(
+                    color: Color(0xffff9700),
+                  ),
+                ),
+              ),
+            ),
+            angle: fraction * 180,
+          ),
+          envelopOpened ? SizedBox() : envelopeTop()
+        ],
+      ),
+    );
   }
 
   Widget renderElement() {
     if (!showMessage) {
-      return renderEnvelope();
+      return renderCustomEnvelope();
     }
     return renderMessage();
   }
 
-  Widget renderEnvelope() {
-    return GestureDetector(
-      child: SvgPicture.asset(
-        "lib/Assets/email.svg",
-        width: 250,
-        height: 200,
-      ),
-      onTap: () {
-        loadQuote();
-      },
-    );
-  }
-
   Widget renderMessage() {
     return Container(
-        height: MediaQuery.of(context).size.height,
-        width: MediaQuery.of(context).size.width,
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image:
-                AssetImage("lib/Assets/image" + _imageData.toString() + ".jpg"),
-            fit: BoxFit.cover,
-            colorFilter: new ColorFilter.mode(
-                Colors.black.withOpacity(0.6), BlendMode.dstATop),
-          ),
+      height: MediaQuery.of(context).size.height,
+      width: MediaQuery.of(context).size.width,
+      decoration: BoxDecoration(
+        image: DecorationImage(
+          image:
+              AssetImage("lib/Assets/image" + _imageData.toString() + ".jpg"),
+          fit: BoxFit.cover,
+          colorFilter: new ColorFilter.mode(
+              Colors.black.withOpacity(0.6), BlendMode.dstATop),
         ),
-        child: Center(
-            child: Text(
+      ),
+      child: Center(
+        child: Text(
           _messageData["message"],
           style: TextStyle(fontSize: 20, color: Colors.black),
-        )));
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Title"),
+        title: Text("Envelope"),
         actions: [
           FlatButton(
             child: Text("reset"),
@@ -153,3 +304,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+//side #febd0b
+//bottom ff9700
+//top ffd140
