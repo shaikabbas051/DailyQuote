@@ -1,4 +1,6 @@
+import 'package:envelope/Components/EnvelopeComponent.dart';
 import 'package:envelope/Components/HomePage.dart';
+import 'package:envelope/Components/QuoteComponent.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -24,7 +26,7 @@ class MyApp extends StatelessWidget {
         // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: HomePage(),
+      home: Envelope(),
     );
   }
 }
